@@ -290,6 +290,12 @@ class MainWindow(QMainWindow, WindowMixin):
         color1 = action(getStr('boxLineColor'), self.chooseColor1,
                         'Ctrl+L', 'color_line', getStr('boxLineColorDetail'))
 
+        nextLabel = action(getStr('nextLabel'), lambda : self.selectLabel(True),
+                           'x', None, getStr('nextLabelDetail'), enabled=False)
+
+        prevLabel = action(getStr('prevLabel'), lambda : self.selectLabel(False),
+                           'z', None, getStr('prevLabelDetail'), enabled=False)
+
         createMode = action(getStr('crtBox'), self.setCreateMode,
                             'w', 'new', getStr('crtBoxDetail'), enabled=False)
         editMode = action('&Edit\nRectBox', self.setEditMode,
@@ -380,7 +386,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Store actions for further handling.
         self.actions = struct(save=save, save_format=save_format, saveAs=saveAs, open=open, close=close, resetAll = resetAll, deleteImg = deleteImg,
-                              lineColor=color1, create=create, delete=delete, edit=edit, copy=copy,
+                              lineColor=color1, create=create, delete=delete, edit=edit, copy=copy, nextLabel=nextLabel, prevLabel=prevLabel,
                               createMode=createMode, editMode=editMode, advancedMode=advancedMode,
                               shapeLineColor=shapeLineColor, shapeFillColor=shapeFillColor,
                               zoom=zoom, zoomIn=zoomIn, zoomOut=zoomOut, zoomOrg=zoomOrg,
@@ -390,7 +396,7 @@ class MainWindow(QMainWindow, WindowMixin):
                                   open, opendir, save, saveAs, close, resetAll, quit),
                               beginner=(), advanced=(),
                               editMenu=(edit, copy, delete,
-                                        None, color1, self.drawSquaresOption),
+                                        None, color1, self.drawSquaresOption, None, nextLabel, prevLabel),
                               beginnerContext=(create, edit, copy, delete),
                               advancedContext=(createMode, editMode, edit, copy,
                                                delete, shapeLineColor, shapeFillColor),
@@ -882,6 +888,7 @@ class MainWindow(QMainWindow, WindowMixin):
         for action in self.actions.onShapesPresent:
             action.setEnabled(True)
         self.updateComboBox()
+        self.setSelectLabelEnabled()
 
     def remLabel(self, shape):
         if shape is None:
@@ -892,6 +899,7 @@ class MainWindow(QMainWindow, WindowMixin):
         del self.shapesToItems[shape]
         del self.itemsToShapes[item]
         self.updateComboBox()
+        self.setSelectLabelEnabled()
 
     def loadLabels(self, shapes):
         s = []
@@ -1017,6 +1025,20 @@ class MainWindow(QMainWindow, WindowMixin):
                     flagbtn.setChecked(getattr(shape, flagbtn.text()))
                 else:
                     flagbtn.setChecked(False)
+
+        self.setSelectLabelEnabled()
+
+    def setSelectLabelEnabled(self):
+        # note that if the labellist item is not selected and labellist has no item, currentRow returns -1
+        # the labellist item is not selected and labellist has the item(s), currentRow returns 0
+        index = self.labelList.currentRow()
+        if index >= 0:
+            self.actions.nextLabel.setEnabled(index + 1 < self.labelList.count())
+            self.actions.prevLabel.setEnabled(index - 1 >= 0)
+        else:
+            self.actions.nextLabel.setEnabled(False)
+            self.actions.prevLabel.setEnabled(False)
+
     def labelItemChanged(self, item):
         shape = self.itemsToShapes[item]
         label = item.text()
@@ -1026,6 +1048,15 @@ class MainWindow(QMainWindow, WindowMixin):
             self.setDirty()
         else:  # User probably changed item visibility
             self.canvas.setShapeVisible(shape, item.checkState() == Qt.Checked)
+
+    def selectLabel(self, isNext):
+        index = self.labelList.currentRow()
+        if isNext:
+            if index + 1 < self.labelList.count():
+                self.labelList.setCurrentRow(index+1)
+        else:
+            if index - 1 >= 0:
+                self.labelList.setCurrentRow(index-1)
 
     # Callback functions:
     def newShape(self):
